@@ -2,12 +2,12 @@ import fs from 'fs'
 import https from 'https'
 global.XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest
 
-export default (url, out='/tmp') => {
+export const loadPage = (url, out='/tmp') => {
     const content = getPageContent(url)
     
 }
 
-const getPageContent = (url) => {
+export const getPageContent = (url) => {
     https.get(url, (resp) => {
         let data = '';
        
