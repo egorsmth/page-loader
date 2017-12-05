@@ -1,36 +1,33 @@
 import fs from 'fs'
 import https from 'https'
-global.XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest
+import cheerio from 'cheerio'
 
-export const loadPage = (url, out='/tmp') => {
-    const content = getPageContent(url)
-    
-}
-
-export const getPageContent = (url) => {
+const getPageContent = (url, cb) => {
     https.get(url, (resp) => {
         let data = '';
-       
-        // A chunk of data has been recieved.
-        resp.on('data', (chunk) => {
+               resp.on('data', (chunk) => {
           data += chunk;
         });
-       
-        // The whole response has been received. Print out the result.
         resp.on('end', () => {
-          console.log(data);
+            cb(null, data)
         });
-       
       }).on("error", (err) => {
-        console.log("Error: " + err.message);
+        cb(err.message, null)
       });
-}
-const save = (data, dest, cb) => {
-    fs.WriteFile(dest, data, cb)
 }
 
 const getDownloadableLinks = (content) => {
-    console.log("======CONTENT=======")
-    console.log(content)
-    console.log("======CONTENT=======")
+    let urls = []
+    const html = cheerio.load(content)
+    const links = [...html('link')]
+    const imgs = [...html('img')]
+
+    const total = [...links, ...imgs]
+    return total.reduce((prev, curr) => {
+        if (curr.name == 'link') {
+            return [...prev, curr.attribs.src]
+        }
+        return [...prev, curr.attribs.href]
+    }, [])
 }
+export { getPageContent, getDownloadableLinks }

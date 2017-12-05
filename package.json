@@ -22,8 +22,8 @@
   },
   "homepage": "https://github.com/egorsmth/page-loader#readme",
   "dependencies": {
-    "commander": "^2.12.2",
-    "xmlhttprequest": "^1.8.0"
+    "cheerio": "^1.0.0-rc.2",
+    "commander": "^2.12.2"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
