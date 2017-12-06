@@ -1,6 +1,7 @@
 import fs from 'fs'
 import https from 'https'
 import cheerio from 'cheerio'
+import axios from 'axios'
 
 const getPageContent = (url, cb) => {
     https.get(url, (resp) => {
@@ -30,4 +31,16 @@ const getDownloadableLinks = (content) => {
         return [...prev, curr.attribs.href]
     }, [])
 }
-export { getPageContent, getDownloadableLinks }
+
+const downloadAsset = (asset, url, dir, cb) => {
+    https.get(url + asset, (res) => {
+        res.on('data', (d) => {
+            fs.appendFileSync(dir + asset, d)
+            cb()
+        });
+    }).on('error', (err) => {
+        cb(err)
+    })
+}
+
+export { getPageContent, getDownloadableLinks, downloadAsset }

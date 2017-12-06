@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/egorsmth/page-loader#readme",
   "dependencies": {
+    "axios": "^0.17.1",
     "cheerio": "^1.0.0-rc.2",
     "commander": "^2.12.2"
   },
