@@ -37,7 +37,7 @@ test('download asset', done => {
     const fname = directory + result[0];
     const r = downloadAsset(result[0], url, directory, (err) => {
         if (err) {
-            expect(false).toEqual(true);
+            expect(err).toEqual('');
             done();
         }
         expect(fs.existsSync(fname)).toEqual(true);
@@ -45,4 +45,22 @@ test('download asset', done => {
         fs.unlinkSync(fname);
         done();
     });
-})
+});
+
+test('change links to local', () => {
+    const newHtml = changeLinksToLokal(html, directory)
+    expect(newHtml)
+        .toEqual(`<html><head><link src="#{directory}/style.css"></head><body><img href="#{directory}/pic.jpg"></body></html>`);
+});
+
+test('flow', done => {
+    loadPage(url, directory, (err) => {
+        if (err) {
+            expect(err).toEqual('');
+            done()
+        }
+        expect(fs.readFileSync(directory + 'index.html').toString())
+            .toEqual(`<html><head><link src="#{directory}/style.css"></head><body><img href="#{directory}/pic.jpg"></body></html>`);
+        done();
+    });
+});
