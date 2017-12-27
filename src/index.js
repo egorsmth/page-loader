@@ -1,7 +1,9 @@
 import fs from 'fs'
 import https from 'https'
 import cheerio from 'cheerio'
-import axios from 'axios'
+import shell from 'shelljs'
+import path from 'path'
+import { URL } from 'url'
 
 const getPageContent = (url, cb) => {
     https.get(url + '/', (resp) => {
@@ -25,18 +27,35 @@ const getDownloadableLinks = (html) => {
 
     const total = [...links, ...imgs]
     return total.reduce((prev, curr) => {
-        if (curr.name == 'link') {
-            return [...prev, curr.attribs.href]
+        if (curr.name == 'link' && curr.attribs.href.startsWith('/')) {
+            let myURL = curr.attribs.href
+            if (curr.attribs.href.indexOf('?') != -1) {
+                myURL = curr.attribs.href.substring(0, curr.attribs.href.indexOf('?'));
+            }
+            return [...prev, myURL]
+        } else if (curr.name == 'img' && curr.attribs.src.startsWith('/')) {
+            let myURL = curr.attribs.src
+            if (curr.attribs.src.indexOf('?') != -1) {
+                myURL = curr.attribs.src.substring(0, curr.attribs.src.indexOf('?'));
+            }
+            return [...prev, myURL]
+        } else {
+            return prev
         }
-        return [...prev, curr.attribs.src]
     }, [])
 }
 
 const downloadAsset = (asset, url, dir, cb) => {
-    https.get(url + '/' + asset, (res) => {
+    console.log(asset, url, dir)
+    https.get(url + asset, (res) => {
         res.on('data', (d) => {
-            fs.appendFileSync(dir + asset, d)
-            cb()
+            try {
+                shell.mkdir('-p', path.dirname(dir + asset));
+                fs.appendFileSync(dir + asset, d)
+                cb()
+            } catch (e) {
+                cb(e)
+            }
         });
     }).on('error', (err) => {
         cb(err)
@@ -45,11 +64,15 @@ const downloadAsset = (asset, url, dir, cb) => {
 
 const changeLinksToLokal = (html, dir) => {
     const content = cheerio.load(html);
-    [...content('link')].map((val) => {
-        val.attribs.href = dir + val.attribs.href;
+    [...content('link')].map((curr) => {
+        if (curr.name == 'link' && curr.attribs.href.startsWith('/')) {
+            curr.attribs.href = dir + curr.attribs.href;
+        }
     });
-    [...content('img')].map((val) => {
-        val.attribs.src = dir + val.attribs.src;
+    [...content('img')].map((curr) => {
+        if (curr.name == 'img' && curr.attribs.src.startsWith('/')) {
+            curr.attribs.src = dir + curr.attribs.src
+        }
     });
     return content.html()
 }
@@ -69,7 +92,7 @@ const loadPage = (url, dir, cb) => {
             });
         });
         const updatedLinksContent = changeLinksToLokal(content, dir);
-        fs.appendFileSync(dir + 'index.html', updatedLinksContent);
+        fs.appendFileSync(dir + '/' + 'index.html', updatedLinksContent);
         cb()
     });
 }
