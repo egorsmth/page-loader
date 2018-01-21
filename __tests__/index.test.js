@@ -1,16 +1,19 @@
-import {getPageContent, getDownloadableLinks, downloadAsset, changeLinksToLokal, loadPage} from '../src/';
+import { prepareDir, getPageContent, getDownloadableLinks, downloadAsset, changeLinksToLokal, loadPage } from '../src/';
 import nock from 'nock';
-import fs from 'fs';
+import fs from 'fs-extra';
 
-const html = '<html><head><link href="style.css"></head><body><img src="pic.jpg"></body></html>'
+const url = 'https://mysite.com';
+const directory = '__tests__/tmp';
+const html = '<html><head><link href="/style.css"></head><body><img src="/pic.jpg"></body></html>'
+const resultHtml = `<html><head><link href="${directory}/style.css"></head><body><img src="${directory}/pic.jpg"></body></html>`
 const remote = nock('https://mysite.com')
     .persist()
     .get('/')
     .reply(200, html)
 
 const result = [
-    'style.css',
-    'pic.jpg'
+    '/style.css',
+    '/pic.jpg'
 ];
 
 const style = nock('https://mysite.com/style.css')
@@ -23,8 +26,17 @@ const img = nock('https://mysite.com/pic.jpg')
     .get('')
     .replyWithFile(200, __dirname + '/fixtures/pic.jpg', { 'Content-Type': 'application/json' });
 
-const url = 'https://mysite.com';
-const directory = '__tests__/tmp/';
+
+
+beforeAll(() => {
+    fs.removeSync(directory)
+    fs.mkdirsSync(directory)
+});
+
+test('prepare dir', () => {
+    const dir = prepareDir(directory + '/')
+    expect(dir).toEqual(directory)
+});
 
 test('gets page content', () => {
     getPageContent(url, (err, res) => {
@@ -53,17 +65,17 @@ test('download asset', done => {
 test('change links to local', () => {
     const newHtml = changeLinksToLokal(html, directory)
     expect(newHtml)
-        .toEqual(`<html><head><link href="` + directory + `style.css"></head><body><img src="` + directory + `pic.jpg"></body></html>`);
+        .toEqual(resultHtml);
 });
 
 test('flow', done => {
-    loadPage(url, directory, (err) => {
+    loadPage(url, directory + '/', (err) => {
         if (err) {
             expect(err).toEqual('');
             done();
         }
         expect(fs.readFileSync(directory + '/index.html').toString())
-            .toEqual(`<html><head><link href="` + directory + `style.css"></head><body><img src="` + directory + `pic.jpg"></body></html>`);
+            .toEqual(resultHtml);
         done();
     });
 });

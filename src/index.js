@@ -1,12 +1,23 @@
-import fs from 'fs'
+import fs from 'fs-extra'
 import https from 'https'
 import cheerio from 'cheerio'
 import shell from 'shelljs'
 import path from 'path'
 import { URL } from 'url'
 
+const prepareDir = (dir) => {
+    fs.ensureDirSync(dir)
+    if (dir.endsWith('/')) {
+        return dir.substring(0, dir.length-1)
+    }
+    return dir
+}
+
 const getPageContent = (url, cb) => {
-    https.get(url + '/', (resp) => {
+    if (!url.endsWith('/')) {
+        url += '/'
+    }
+    https.get(url, (resp) => {
         let data = '';
                resp.on('data', (chunk) => {
           data += chunk;
@@ -14,9 +25,9 @@ const getPageContent = (url, cb) => {
         resp.on('end', () => {
             cb(null, data)
         });
-      }).on("error", (err) => {
+    }).on("error", (err) => {
         cb(err.message, null)
-      });
+    });
 }
 
 const getDownloadableLinks = (html) => {
@@ -29,14 +40,16 @@ const getDownloadableLinks = (html) => {
     return total.reduce((prev, curr) => {
         if (curr.name == 'link' && curr.attribs.href.startsWith('/')) {
             let myURL = curr.attribs.href
-            if (curr.attribs.href.indexOf('?') != -1) {
-                myURL = curr.attribs.href.substring(0, curr.attribs.href.indexOf('?'));
+            let queryPartIndex = curr.attribs.href.indexOf('?')
+            if (queryPartIndex != -1) {
+                myURL = curr.attribs.href.substring(0, queryPartIndex);
             }
             return [...prev, myURL]
         } else if (curr.name == 'img' && curr.attribs.src.startsWith('/')) {
             let myURL = curr.attribs.src
-            if (curr.attribs.src.indexOf('?') != -1) {
-                myURL = curr.attribs.src.substring(0, curr.attribs.src.indexOf('?'));
+            let queryPartIndex = curr.attribs.src.indexOf('?')
+            if (queryPartIndex != -1) {
+                myURL = curr.attribs.src.substring(0, queryPartIndex);
             }
             return [...prev, myURL]
         } else {
@@ -46,15 +59,17 @@ const getDownloadableLinks = (html) => {
 }
 
 const downloadAsset = (asset, url, dir, cb) => {
-    console.log(asset, url, dir)
+    
     https.get(url + asset, (res) => {
-        res.on('data', (d) => {
+        res.on('data', (data) => {
             try {
-                shell.mkdir('-p', path.dirname(dir + asset));
-                fs.appendFileSync(dir + asset, d)
+                const assetDir = path.join(dir, asset)
+                fs.ensureDirSync(dir)
+                fs.appendFileSync(assetDir, data)
+                console.log(`${assetDir} downloaded!`)
                 cb()
-            } catch (e) {
-                cb(e)
+            } catch (err) {
+                cb(err)
             }
         });
     }).on('error', (err) => {
@@ -78,6 +93,7 @@ const changeLinksToLokal = (html, dir) => {
 }
 
 const loadPage = (url, dir, cb) => {
+    dir = prepareDir(dir)
     getPageContent(url, (err, content) => {
         if (err) {
             console.error(err)
@@ -86,15 +102,16 @@ const loadPage = (url, dir, cb) => {
         links.map((link) => {
             downloadAsset(link, url, dir, (err) => {
                 if (err) {
-                    console.error('error ' + link + " " + url)
+                    console.error(`error ${link} ${url}`)
                     console.error(err)
                 }
             });
         });
         const updatedLinksContent = changeLinksToLokal(content, dir);
-        fs.appendFileSync(dir + '/' + 'index.html', updatedLinksContent);
+        const indexPath = path.join(dir, 'index.html');
+        fs.appendFileSync(indexPath, updatedLinksContent);
         cb()
     });
 }
 
-export { getPageContent, getDownloadableLinks, downloadAsset, changeLinksToLokal, loadPage }
+export { prepareDir, getPageContent, getDownloadableLinks, downloadAsset, changeLinksToLokal, loadPage }
